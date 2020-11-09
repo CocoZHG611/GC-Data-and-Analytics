@@ -7,8 +7,7 @@ USE WARS;
 IF OBJECT_ID('tempdb.dbo.#Temp', 'U') IS NOT NULL
 DROP TABLE #Temp;
 
-/*select *
- from consult.consultation_target_countries ctc
+/*select * from consult.consultation_target_countries ctc
  where ctc.consultation_id IN (2895635,2895635,2949039,2968722,2969873);*/
 
 
@@ -81,47 +80,53 @@ SELECT
 	COUNT(DISTINCT CASE WHEN (f_tpv.RP_STATUS = 'CRP') THEN f_tpv.F_TPV_KEY   ELSE NULL END) AS tpv_crp_1
 into #Temp
 FROM WARS.bi.F_PROJECT  AS f_project
-LEFT JOIN WARS.bi.F_TPV  AS f_tpv ON f_project.F_PROJECT_KEY = f_tpv.F_PROJECT_KEY
-LEFT JOIN WARS.bi.D_DATE  AS d_date ON d_date.DATE_KEY = f_tpv.TPV_DATE_KEY
-LEFT JOIN WARS.bi.D_DATE  AS d_date_proj ON d_date_proj.DATE_KEY = f_project.CREATE_DATE_KEY
-LEFT JOIN d_client AS d_tpv_client ON d_tpv_client.D_CLIENT_KEY = f_tpv.D_CLIENT_KEY
-LEFT JOIN WARS.bi.D_PRODUCT  AS project_product ON f_project.D_PRODUCT_KEY = project_product.D_PRODUCT_KEY
-LEFT JOIN d_emp AS d_emp_pcsp ON f_project.PRIMARY_RM_D_EMP_KEY = d_emp_pcsp.D_EMP_KEY
-LEFT JOIN GLGLIVE.consult.CONSULTATION_Expertise_Description_Publish cedp ON cedp.consultation_ID = f_project.project_id
-LEFT JOIN d_user ON d_user.D_USER_KEY = f_project.PRIMARY_CONSULTATION_USER_KEY
-LEFT JOIN (select distinct f_project.PROJECT_ID, f_project.F_PROJECT_KEY, max(f_project.CREATE_DATE) as CREATE_DATE,MIN(f_tpv.TPV_DATE) AS FIRST_TPV_DATE 
-from WARS.bi.F_PROJECT  AS f_project LEFT JOIN WARS.bi.F_TPV  AS f_tpv 
-ON f_project.F_PROJECT_KEY = f_tpv.F_PROJECT_KEY
-group by f_project.PROJECT_ID, f_project.F_PROJECT_KEY
-) TPV on f_project.F_PROJECT_KEY = TPV.F_PROJECT_KEY
-LEFT JOIN (select f_project.F_PROJECT_KEY, min(pma.CREATED_DATE) AS STATUS_DATE
-from WARS.bi.F_PROJECT  AS f_project
-left join WARS.bi.F_PROJECT_MEETING_ACTIVITY AS PMA on f_project.PROJECT_ID=PMA.PROJECT_ID
-left join WARS.bi.D_PROJECT_ACTIVITY_STATUS AS PROJ_ACTS on PMA.D_PROJECT_ACTIVITY_STATUS_KEY=PROJ_ACTS.D_PROJECT_ACTIVITY_STATUS_KEY
-where PROJECT_ACTIVITY_STATUS='Attached' or PROJECT_ACTIVITY_STATUS='Added to List' 
-group by f_project.F_PROJECT_KEY) SA ON SA.F_PROJECT_KEY=f_project.F_PROJECT_KEY
-LEFT JOIN (select f_project.F_PROJECT_KEY, min(pma.CREATED_DATE) AS STATUS_DATE
-from WARS.bi.F_PROJECT  AS f_project
-left join WARS.bi.F_PROJECT_MEETING_ACTIVITY AS PMA on f_project.PROJECT_ID=PMA.PROJECT_ID
-left join WARS.bi.D_PROJECT_ACTIVITY_STATUS AS PROJ_ACTS on PMA.D_PROJECT_ACTIVITY_STATUS_KEY=PROJ_ACTS.D_PROJECT_ACTIVITY_STATUS_KEY
-where PROJECT_ACTIVITY_STATUS='Published' or PROJECT_ACTIVITY_STATUS='Given to Client' or PROJECT_ACTIVITY_STATUS='Proposed'
-group by f_project.F_PROJECT_KEY) SG ON SG.F_PROJECT_KEY=f_project.F_PROJECT_KEY
-WHERE (project_product.PRODUCT_Name = 'Phone Consultation') AND (d_user.PL_NAME = 'Greater China')
+	LEFT JOIN WARS.bi.F_TPV  AS f_tpv ON f_project.F_PROJECT_KEY = f_tpv.F_PROJECT_KEY
+	LEFT JOIN WARS.bi.D_DATE  AS d_date ON d_date.DATE_KEY = f_tpv.TPV_DATE_KEY
+	LEFT JOIN WARS.bi.D_DATE  AS d_date_proj ON d_date_proj.DATE_KEY = f_project.CREATE_DATE_KEY
+	LEFT JOIN d_client AS d_tpv_client ON d_tpv_client.D_CLIENT_KEY = f_tpv.D_CLIENT_KEY
+	LEFT JOIN WARS.bi.D_PRODUCT  AS project_product ON f_project.D_PRODUCT_KEY = project_product.D_PRODUCT_KEY
+	LEFT JOIN d_emp AS d_emp_pcsp ON f_project.PRIMARY_RM_D_EMP_KEY = d_emp_pcsp.D_EMP_KEY
+	LEFT JOIN GLGLIVE.consult.CONSULTATION_Expertise_Description_Publish cedp ON cedp.consultation_ID = f_project.project_id
+	LEFT JOIN d_user ON d_user.D_USER_KEY = f_project.PRIMARY_CONSULTATION_USER_KEY
+	LEFT JOIN (select distinct f_project.PROJECT_ID
+							 , f_project.F_PROJECT_KEY
+							 , MAX(f_project.CREATE_DATE) as CREATE_DATE
+							 , MIN(f_tpv.TPV_DATE) AS FIRST_TPV_DATE 
+				from WARS.bi.F_PROJECT  AS f_project 
+				LEFT JOIN WARS.bi.F_TPV  AS f_tpv ON f_project.F_PROJECT_KEY = f_tpv.F_PROJECT_KEY
+				group by f_project.PROJECT_ID, f_project.F_PROJECT_KEY
+			  ) TPV on f_project.F_PROJECT_KEY = TPV.F_PROJECT_KEY
+	LEFT JOIN (select f_project.F_PROJECT_KEY
+					, MIN(pma.CREATED_DATE) AS STATUS_DATE
+			    from WARS.bi.F_PROJECT  AS f_project
+				LEFT JOIN WARS.bi.F_PROJECT_MEETING_ACTIVITY AS PMA on f_project.PROJECT_ID=PMA.PROJECT_ID
+				LEFT JOIN WARS.bi.D_PROJECT_ACTIVITY_STATUS AS PROJ_ACTS on PMA.D_PROJECT_ACTIVITY_STATUS_KEY=PROJ_ACTS.D_PROJECT_ACTIVITY_STATUS_KEY
+				where PROJECT_ACTIVITY_STATUS='Attached' or PROJECT_ACTIVITY_STATUS='Added to List' 
+				group by f_project.F_PROJECT_KEY) SA ON SA.F_PROJECT_KEY=f_project.F_PROJECT_KEY
+	LEFT JOIN (select f_project.F_PROJECT_KEY
+					, MIN(pma.CREATED_DATE) AS STATUS_DATE
+				from WARS.bi.F_PROJECT  AS f_project
+				LEFT JOIN WARS.bi.F_PROJECT_MEETING_ACTIVITY AS PMA on f_project.PROJECT_ID=PMA.PROJECT_ID
+				LEFT JOIN WARS.bi.D_PROJECT_ACTIVITY_STATUS AS PROJ_ACTS on PMA.D_PROJECT_ACTIVITY_STATUS_KEY=PROJ_ACTS.D_PROJECT_ACTIVITY_STATUS_KEY
+				where PROJECT_ACTIVITY_STATUS='Published' or PROJECT_ACTIVITY_STATUS='Given to Client' or PROJECT_ACTIVITY_STATUS='Proposed'
+				group by f_project.F_PROJECT_KEY) SG ON SG.F_PROJECT_KEY=f_project.F_PROJECT_KEY
+	WHERE (project_product.PRODUCT_Name = 'Phone Consultation') 
+	AND (d_user.PL_NAME = 'Greater China')
 	AND YEAR(d_date_proj.DATE ) >= 2019
 GROUP BY 
-d_date_proj.DATE,
-d_tpv_client.CLIENT_SFDC_ID ,
-f_project.PROJECT_ID ,
-f_project.TITLE ,
-d_emp_pcsp.PERSON_ID ,
-d_emp_pcsp.EMPLOYEENAME ,
-d_emp_pcsp.POD ,d_emp_pcsp.BU ,
-d_tpv_client.CLIENT_ID ,
-d_tpv_client.CLIENT_NAME,
-cedp.PUBLISH_CHANNEL,
-TPV.FIRST_TPV_DATE,
-SA.STATUS_DATE,
-SG.STATUS_DATE
+	d_date_proj.DATE,
+	d_tpv_client.CLIENT_SFDC_ID ,
+	f_project.PROJECT_ID ,
+	f_project.TITLE ,
+	d_emp_pcsp.PERSON_ID ,
+	d_emp_pcsp.EMPLOYEENAME ,
+	d_emp_pcsp.POD ,d_emp_pcsp.BU ,
+	d_tpv_client.CLIENT_ID ,
+	d_tpv_client.CLIENT_NAME,
+	cedp.PUBLISH_CHANNEL,
+	TPV.FIRST_TPV_DATE,
+	SA.STATUS_DATE,
+	SG.STATUS_DATE
 
 
 /*select * from WARS.bi.F_PROJECT  AS f_project LEFT JOIN WARS.bi.F_TPV  AS f_tpv 
