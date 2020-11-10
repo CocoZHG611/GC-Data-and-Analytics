@@ -220,6 +220,43 @@ group by employee_ID
 	, Publish_Channel) a
 order by a.Publish_Channel, a.employee_ID
 
+
+
+select a.*
+	, ISNULL(cast(cast(a.success_proj as decimal(18,2))/NULLIF(a.total_proj,0) as decimal(18,2)),0) as success_rate 
+	, ISNULL(cast(cast(a.total_tpv as decimal(18,2))/NULLIF(a.total_proj,0) as decimal(18,2)),0) as yield 
+	, ISNULL(cast(cast(a.total_ATTACH_speed as decimal(18,2))/NULLIF(a.ATTACH_speed_proj,0) as decimal(18,2)),0) as ATTACH_speed
+	, ISNULL(cast(cast(a.total_GTC_speed as decimal(18,2))/NULLIF(a.GTC_speed_proj,0) as decimal(18,2)),0) as GTC_speed
+	, ISNULL(cast(cast(a.total_tpv_speed as decimal(18,2))/NULLIF(a.tpv_speed_proj,0) as decimal(18,2)),0) as TPV_speed 
+from( 
+select distinct employee_ID
+	, Publish_Channel
+	, count(proj_id) as total_proj
+	, COUNT(CASE WHEN tpv_count<>0 THEN tpv_count END) as success_proj
+	, COUNT(CASE WHEN ATTACH_speed<>0 THEN ATTACH_speed END) as ATTACH_speed_proj
+	, COUNT(CASE WHEN GTC_speed<>0 THEN GTC_speed END) as GTC_speed_proj
+	, COUNT(CASE WHEN tpv_speed<>0 THEN tpv_speed END) as tpv_speed_proj
+	, sum(tpv_count) as total_tpv
+	, sum(ATTACH_speed) as total_ATTACH_speed
+	, sum(GTC_speed) as total_GTC_speed
+	, sum(tpv_speed) as total_tpv_speed
+from #Temp
+group by employee_ID
+	, Publish_Channel) a
+where  exists (
+select distinct b.employee_ID, count(b.employee_ID) as count from
+(select distinct employee_ID, Publish_Channel
+from #Temp
+group by employee_ID
+	, Publish_Channel) b
+where b.employee_ID=a.employee_ID
+group by b.employee_ID
+having count(b.employee_ID)=2)
+order by a.Publish_Channel, a.employee_ID
+
+
+
+
 select a.*
 	, cast(cast(a.success_proj as decimal(18,2))/a.total_proj as decimal(18,2)) as success_rate 
 	, cast(cast(a.total_tpv as decimal(18,2))/a.total_proj as decimal(18,2)) as yield 
