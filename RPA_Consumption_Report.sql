@@ -167,18 +167,18 @@ select a.CREATE_YEAR
 	,case when sum(a.active_partners)>=10 then 1
 	else 0 end as active_partners 
 into #Active from (
-select Year(CREATE_DATE) as CREATE_YEAR
-	, Month(CREATE_DATE) AS CREATE_MONTH
-	, REFERRER_CM_NAME
-	, REFERRER_CM_ID
-	, REFERRAL_CM_ID
-	,count(distinct REFERRAL_CM_ID)as active_partners
-from #Temp
-group by Year(CREATE_DATE)
-	, Month(CREATE_DATE)
-	, REFERRER_CM_NAME
-	, REFERRER_CM_ID
-	, REFERRAL_CM_ID) a
+	select Year(CREATE_DATE) as CREATE_YEAR
+		, Month(CREATE_DATE) AS CREATE_MONTH
+		, REFERRER_CM_NAME
+		, REFERRER_CM_ID
+		, REFERRAL_CM_ID
+		,count(distinct REFERRAL_CM_ID)as active_partners
+	from #Temp
+	group by Year(CREATE_DATE)
+		, Month(CREATE_DATE)
+		, REFERRER_CM_NAME
+		, REFERRER_CM_ID
+		, REFERRAL_CM_ID) a
 where a.CREATE_YEAR>=2018
 group by a.CREATE_YEAR
 	, a.CREATE_MONTH
@@ -187,23 +187,24 @@ group by a.CREATE_YEAR
 
 --select *from #Active
 
-select c.* into #TOTAL from
-(select b.START_Year
-	, b.START_Month
-	, b.REFERRER_CM_NAME
-	, COUNT(b.ranks) OVER (ORDER BY b.START_Year, b.START_Month rows 100000000 PRECEDING) total_partners from
-(select a.* from
-(select year(min(START_DATE)) AS START_Year
-	, Month(min(START_DATE)) AS START_Month
-	, REFERRER_CM_NAME, dense_rank() OVER (ORDER BY REFERRER_CM_ID) ranks
-from #Temp
-group by REFERRER_CM_NAME
-	, REFERRER_CM_ID) a
-group by a.START_Year
-	, a.START_Month
-	, a.REFERRER_CM_NAME
-	, a.ranks) b
-group by b.START_Year
+select c.* into #TOTAL 
+from(
+	select b.START_Year
+		, b.START_Month
+		, b.REFERRER_CM_NAME
+		, COUNT(b.ranks) OVER (ORDER BY b.START_Year, b.START_Month rows 100000000 PRECEDING) total_partners 
+	from(
+		select a.* from(
+			select year(min(START_DATE)) AS START_Year
+				, Month(min(START_DATE)) AS START_Month
+				, REFERRER_CM_NAME, dense_rank() OVER (ORDER BY REFERRER_CM_ID) ranks
+			from #Temp
+			group by REFERRER_CM_NAME, REFERRER_CM_ID) a
+		group by a.START_Year
+			, a.START_Month
+			, a.REFERRER_CM_NAME
+			, a.ranks) b
+	group by b.START_Year
 	, b.START_Month
 	, b.REFERRER_CM_NAME
 	, b.ranks) c
@@ -212,23 +213,26 @@ order by c.start_year, c.START_Month
 
 --select *from #TOTAL
 
-select c.*,
-cast(cast(c.active_partners as decimal(18,2))/c.total_partners as decimal(18,2)) as perc_active,
-cast(cast(c.total_partners-LAG(c.total_partners) OVER (ORDER BY c.Years ) as decimal(18,2))/ LAG(c.total_partners) OVER (ORDER BY c.Years ) as decimal(18,2)) AS total_growth 
-into #GROWTH from (
-select #Active.CREATE_YEAR as Years
-	,#Active.CREATE_MONTH as Months
-	,#Active.active_partners
-	,max(#TOTAL.total_partners) as total_partners
-from (select CREATE_YEAR, CREATE_MONTH, sum(active_partners) as active_partners
-from #Active
-group by CREATE_YEAR, CREATE_MONTH)#Active join #TOTAL on
-#Active.CREATE_YEAR=#TOTAL.START_Year and #Active.CREATE_MONTH=#TOTAL.START_Month
-group by #Active.CREATE_YEAR
-	,#Active.CREATE_MONTH
-	,#Active.active_partners) c
-order by c.Years
-	,c.Months
+select c.*
+	, cast(cast(c.active_partners as decimal(18,2))/c.total_partners as decimal(18,2)) as perc_active
+	, cast(cast(c.total_partners-LAG(c.total_partners) OVER (ORDER BY c.Years ) as decimal(18,2))/ LAG(c.total_partners) OVER (ORDER BY c.Years ) as decimal(18,2)) AS total_growth 
+into #GROWTH 
+from (
+	select #Active.CREATE_YEAR as Years
+		,#Active.CREATE_MONTH as Months
+		,#Active.active_partners
+		,max(#TOTAL.total_partners) as total_partners
+	from (
+		select CREATE_YEAR
+			, CREATE_MONTH
+			, sum(active_partners) as active_partners
+		from #Active
+		group by CREATE_YEAR, CREATE_MONTH) #Active join #TOTAL on
+		#Active.CREATE_YEAR=#TOTAL.START_Year and #Active.CREATE_MONTH=#TOTAL.START_Month
+	group by #Active.CREATE_YEAR
+		,#Active.CREATE_MONTH
+		,#Active.active_partners) c
+order by c.Years, c.Months
 
 --select *from #GROWTH
 
@@ -237,29 +241,32 @@ select a.REFERRER_CM_NAME
 	, sum(a.projects) as projects 
 	,sum(a.GTC) as success
 	,cast(cast(sum(a.GTC) as decimal(18,2))/sum(a.projects) as decimal(18,2)) as success_rate
-into #Cluster1 from (
-select Year(CREATE_DATE) as CREATE_YEAR
-	, Month(CREATE_DATE) AS CREATE_MONTH
-	, REFERRER_CM_NAME
-	, REFERRER_CM_ID
-	, count(distinct REFERRAL_CM_ID)as projects
-	, case when FIRST_GTC_DATE is not null then 1
-	else 0 end as GTC
-from #Temp
-where Year(CREATE_DATE)>=2020
-group by Year(CREATE_DATE)
-	, Month(CREATE_DATE)
-	, REFERRER_CM_NAME
-	, REFERRER_CM_ID
-	, FIRST_GTC_DATE) a
+into #Cluster1 
+from (
+	select Year(CREATE_DATE) as CREATE_YEAR
+		, Month(CREATE_DATE) AS CREATE_MONTH
+		, REFERRER_CM_NAME
+		, REFERRER_CM_ID
+		, count(distinct REFERRAL_CM_ID)as projects
+		, case when FIRST_GTC_DATE is not null then 1
+		else 0 end as GTC
+	from #Temp
+	where Year(CREATE_DATE)>=2020
+	group by Year(CREATE_DATE)
+		, Month(CREATE_DATE)
+		, REFERRER_CM_NAME
+		, REFERRER_CM_ID
+		, FIRST_GTC_DATE) a
 group by a.REFERRER_CM_NAME, a.REFERRER_CM_ID
 
 
-select distinct REFERRER_CM_NAME, REFERRER_CM_ID, projects,success, success_rate, 
-case when success_rate>=0.023 and projects>=100 then 'H-H'
-when success_rate>=0.023 and projects<100 then 'L-H'
-when success_rate<0.023 and projects>=100 then 'H-L'
-else 'L-L' end as act_success
+select distinct REFERRER_CM_NAME
+	, REFERRER_CM_ID
+	, projects,success, success_rate
+	, case when success_rate>=0.023 and projects>=100 then 'H-H'
+		   when success_rate>=0.023 and projects<100 then 'L-H'
+		   when success_rate<0.023 and projects>=100 then 'H-L'
+		   else 'L-L' end as act_success
 from #Cluster1
 order by projects desc
 
@@ -267,54 +274,60 @@ order by projects desc
 select b.REFERRER_CM_NAME
 	, b.REFERRER_CM_ID
 	, case when sum(b.active)=10 then 1
-	else 0 end as active
+	  else 0 end as active
 into #Cluster2
-from
-(select a.REFERRER_CM_NAME
-	, a.REFERRER_CM_ID
-	, case when a.projects>=1 then 1
-	else 0 end as active 
-from 
-(select Year(CREATE_DATE) as CREATE_YEAR
-	, Month(CREATE_DATE) AS CREATE_MONTH
-	, REFERRER_CM_NAME
-	, REFERRER_CM_ID
-	, count(distinct REFERRAL_CM_ID)as projects
-from #Temp
-where Year(CREATE_DATE)>=2020
-group by REFERRER_CM_NAME
-	, REFERRER_CM_ID
-	, Year(CREATE_DATE)
-	, Month(CREATE_DATE)) a
-group by a.REFERRER_CM_NAME
-	, a.REFERRER_CM_ID
-	, a.projects) b
-group by b.REFERRER_CM_NAME, b.REFERRER_CM_ID
+from (
+	select a.REFERRER_CM_NAME
+		, a.REFERRER_CM_ID
+		, case when a.projects>=1 then 1
+		  else 0 end as active 
+	from (
+		select Year(CREATE_DATE) as CREATE_YEAR
+		, Month(CREATE_DATE) AS CREATE_MONTH
+		, REFERRER_CM_NAME
+		, REFERRER_CM_ID
+		, count(distinct REFERRAL_CM_ID)as projects
+		from #Temp
+		where Year(CREATE_DATE)>=2020
+		group by REFERRER_CM_NAME
+			, REFERRER_CM_ID
+			, Year(CREATE_DATE)
+			, Month(CREATE_DATE)) a
+	group by a.REFERRER_CM_NAME
+		   , a.REFERRER_CM_ID
+		   , a.projects) b
+group by b.REFERRER_CM_NAME
+	   , b.REFERRER_CM_ID
 
 
-select #Cluster1.*, #Cluster2.active, 
-case when #Cluster1.success_rate>=0.023 and #Cluster2.active=1 then 'H-H'
-when #Cluster1.success_rate>=0.023 and #Cluster2.active=0 then 'L-H'
-when #Cluster1.success_rate<0.023 and #Cluster2.active=1 then 'H-L'
-else 'L-L' end as act_success
+select #Cluster1.*
+	 , #Cluster2.active
+	 , case when #Cluster1.success_rate>=0.023 and #Cluster2.active=1 then 'H-H'
+			when #Cluster1.success_rate>=0.023 and #Cluster2.active=0 then 'L-H'
+			when #Cluster1.success_rate<0.023 and #Cluster2.active=1 then 'H-L'
+			else 'L-L' end as act_success
 from #Cluster1 join #Cluster2 on
 #Cluster1.REFERRER_CM_ID=#Cluster2.REFERRER_CM_ID
 order by #Cluster1.projects desc
 
 
 
-select a.COUNCIL_NAME, count(distinct a.REFERRER_CM_ID) as amount from (
-select distinct REFERRER_CM_ID
-	, REFERRER_CM_NAME
-	, REFERRAL_CM_ID
-	, COUNCIL_NAME from #Temp) a
+select a.COUNCIL_NAME
+	, count(distinct a.REFERRER_CM_ID) as amount 
+from (
+	select distinct REFERRER_CM_ID
+		, REFERRER_CM_NAME
+		, REFERRAL_CM_ID
+		, COUNCIL_NAME from #Temp) a
 group by a.COUNCIL_NAME
 
 
-select a.COUNCIL_NAME, count(distinct a.REFERRAL_CM_ID) as amount from (
-select distinct REFERRAL_CM_ID
-	, REFERRAL_CM_NAME
-	, COUNCIL_NAME from #Temp) a
+select a.COUNCIL_NAME	
+	, count(distinct a.REFERRAL_CM_ID) as amount 
+from (
+	select distinct REFERRAL_CM_ID
+		, REFERRAL_CM_NAME
+		, COUNCIL_NAME from #Temp) a
 group by a.COUNCIL_NAME
 
 
