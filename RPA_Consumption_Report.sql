@@ -157,7 +157,7 @@ WHERE CM.END_DATE_KEY = 99991231
 	and RCM.REFERRER_COUNTRY='China' or RCM.REFERRER_COUNTRY='Hong Kong'
 ORDER BY CA.CREATE_DATE ASC;
 
---select * from #Temp where REFERRER_CM_NAME='KaiLu XU' order by REFERRER_CM_NAME, START_DATE
+--select * from #Temp order by REFERRER_CM_NAME, START_DATE
 
 
 
@@ -215,8 +215,8 @@ order by c.start_year, c.START_Month
 --select *from #TOTAL
 
 select c.*
-	, cast(cast(c.active_partners as decimal(18,2))/c.total_partners as decimal(18,2)) as perc_active
-	, cast(cast(c.total_partners-LAG(c.total_partners) OVER (ORDER BY c.Years ) as decimal(18,2))/ LAG(c.total_partners) OVER (ORDER BY c.Years ) as decimal(18,2)) AS total_growth 
+	, cast(cast(c.active_partners as decimal(18,3))/c.total_partners as decimal(18,3)) as perc_active
+	, cast(cast(c.total_partners-LAG(c.total_partners) OVER (ORDER BY c.Years ) as decimal(18,3))/ LAG(c.total_partners) OVER (ORDER BY c.Years ) as decimal(18,3)) AS total_growth 
 into #GROWTH 
 from (
 	select #Active.CREATE_YEAR as Years
@@ -241,7 +241,7 @@ select a.REFERRER_CM_NAME
 	, a.REFERRER_CM_ID
 	, sum(a.projects) as projects 
 	,sum(a.GTC) as success
-	,cast(cast(sum(a.GTC) as decimal(18,2))/sum(a.projects) as decimal(18,2)) as success_rate
+	,cast(cast(sum(a.GTC) as decimal(18,3))/sum(a.projects) as decimal(18,3)) as success_rate
 into #Cluster1 
 from (
 	select Year(CREATE_DATE) as CREATE_YEAR
@@ -264,9 +264,11 @@ group by a.REFERRER_CM_NAME, a.REFERRER_CM_ID
 select distinct REFERRER_CM_NAME
 	, REFERRER_CM_ID
 	, projects,success, success_rate
-	, case when success_rate>=0.023 and projects>=100 then 'H-H'
-		   when success_rate>=0.023 and projects<100 then 'L-H'
-		   when success_rate<0.023 and projects>=100 then 'H-L'
+	, case when projects>=100 then 1
+		   else 0 end as active
+	, case when success_rate>=0.02 and projects>=100 then 'H-H'
+		   when success_rate>=0.02 and projects<100 then 'L-H'
+		   when success_rate<0.02 and projects>=100 then 'H-L'
 		   else 'L-L' end as act_success
 from #Cluster1
 order by projects desc
@@ -274,7 +276,7 @@ order by projects desc
 
 select b.REFERRER_CM_NAME
 	, b.REFERRER_CM_ID
-	, case when sum(b.active)=10 then 1
+	, case when sum(b.active)>=10 then 1
 	  else 0 end as active
 into #Cluster2
 from (
@@ -303,9 +305,9 @@ group by b.REFERRER_CM_NAME
 
 select #Cluster1.*
 	 , #Cluster2.active
-	 , case when #Cluster1.success_rate>=0.023 and #Cluster2.active=1 then 'H-H'
-			when #Cluster1.success_rate>=0.023 and #Cluster2.active=0 then 'L-H'
-			when #Cluster1.success_rate<0.023 and #Cluster2.active=1 then 'H-L'
+	 , case when #Cluster1.success_rate>=0.02 and #Cluster2.active=1 then 'H-H'
+			when #Cluster1.success_rate>=0.02 and #Cluster2.active=0 then 'L-H'
+			when #Cluster1.success_rate<0.02 and #Cluster2.active=1 then 'H-L'
 			else 'L-L' end as act_success
 from #Cluster1 join #Cluster2 on
 #Cluster1.REFERRER_CM_ID=#Cluster2.REFERRER_CM_ID

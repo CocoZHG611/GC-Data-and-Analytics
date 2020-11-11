@@ -209,6 +209,7 @@ from(
 		, sum(tpv_speed) as total_tpv_speed
 	from #Temp
 	where pod='FS - Beijing FS' or pod='FS - Shanghai FS' or pod='FS - South China FS' or pod='FS - Greater China Private Equity'
+	or pod='FS - Greater China Public Equity' or pod='FS - Greater China Credit' or pod='Corp - Greater China Corporate' or pod='PSF'
 	group by Year(CREATE_DATE)
 		, MONTH(CREATE_DATE)
 		, pod
@@ -272,7 +273,7 @@ where exists (
 	where b.employee_ID=a.employee_ID
 	group by b.employee_ID
 	having count(b.employee_ID)=2)
-order by a.employee_ID, a.Publish_Channel
+order by a.Publish_Channel, a.employee_ID
 
 
 
