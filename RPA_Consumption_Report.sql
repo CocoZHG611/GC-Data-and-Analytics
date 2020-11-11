@@ -157,7 +157,8 @@ WHERE CM.END_DATE_KEY = 99991231
 	and RCM.REFERRER_COUNTRY='China' or RCM.REFERRER_COUNTRY='Hong Kong'
 ORDER BY CA.CREATE_DATE ASC;
 
---select * from #Temp order by REFERRER_CM_NAME
+--select * from #Temp where REFERRER_CM_NAME='KaiLu XU' order by REFERRER_CM_NAME, START_DATE
+
 
 
 select a.CREATE_YEAR
