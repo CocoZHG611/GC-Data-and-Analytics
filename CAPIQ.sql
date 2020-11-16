@@ -1,5 +1,5 @@
 Select * FROM glglive.[taxonomy].[INDUSTRY]
-Select top 10000* FROM glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
+Select top 1000* FROM glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
 Select * FROM CAPIQ.dbo.ciqNativeCompanyNames
 order by companyId
 
@@ -26,14 +26,15 @@ FROM WARS.bi.D_COUNCIL_MEMBER  AS d_council_member
 LEFT JOIN WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history ON d_council_member_work_history.COUNCIL_MEMBER_ID=d_council_member.COUNCIL_MEMBER_ID
 WHERE d_council_member.COUNCIL_MEMBER_ID  = 527022*/
 
+
 select * from 
 WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
-where --d_council_member_work_history.COMPANY_ID =25194 or d_council_member_work_history.COMPANY_ID =47902
---or d_council_member_work_history.COMPANY_ID =291196 or d_council_member_work_history.COMPANY_ID =254602 or 
---d_council_member_work_history.COMPANY_ID =320562 or 
-d_council_member_work_history.COMPANY_ID =54 or d_council_member_work_history.COMPANY_ID =6176935
-or d_council_member_work_history.COMPANY_ID =7014013
-order by d_council_member_work_history.COMPANY_ID, d_council_member_work_history.COMPANY_NAME
+where --d_council_member_work_history.COMPANY_ID =25194 or d_council_member_work_history.COMPANY_ID =47902 or 
+--d_council_member_work_history.COMPANY_ID =291196 or d_council_member_work_history.COMPANY_ID =254602 or
+d_council_member_work_history.COMPANY_ID =320562
+--d_council_member_work_history.COMPANY_ID =3168916
+--d_council_member_work_history.COMPANY_NAME like '%ALIBABA%'
+order by d_council_member_work_history.COMPANY_ID, d_council_member_work_history.COUNCIL_MEMBER_ID, d_council_member_work_history.COMPANY_NAME
 
 
 /*select d_council_member_work_history.*, CAPIQ.nativeName from 
@@ -50,14 +51,6 @@ where PARENT.PARENT_INDUSTRY_ID is null) a
 left join glglive.[taxonomy].[INDUSTRY] AS CHILD on a.SUB_INDUSTRY_ID=CHILD.PARENT_INDUSTRY_ID) b
 order by b.INDUSTRY
 
-
-select sub.COMPANY_ID, a.COMPANY_NAME as PARENT_COMPANY_NAME,
-sub.LAST_UPDATE_DATE, sub.MEMBER_COMPANY_ID, b.COMPANY_NAME AS MEMBER_COMPANY_NAME, sub.ULTIMATE_PARENT_IND
-from glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC] sub left join 
-(select distinct COMPANY_ID, COMPANY_NAME from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY) a
-on sub.COMPANY_ID=a.COMPANY_ID
-left join (select distinct COMPANY_ID, COMPANY_NAME from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY) b
-on sub.MEMBER_COMPANY_ID=b.COMPANY_ID
-where sub.ULTIMATE_PARENT_IND=1
-order by sub.COMPANY_ID, sub.MEMBER_COMPANY_ID
-
+select * from glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
+where ULTIMATE_PARENT_IND=1
+order by COMPANY_ID, MEMBER_COMPANY_ID
