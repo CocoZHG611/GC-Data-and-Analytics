@@ -1,10 +1,37 @@
 Select * FROM glglive.[taxonomy].[INDUSTRY]
 Select top 100000* FROM glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
 Select * FROM CAPIQ.dbo.ciqNativeCompanyNames
-where companyId=9935271
+--where companyId=9935271
 order by companyId
 
+
+--taxonomy
+select b.INDUSTRY
+	 , b.INDUSTRY_ID
+	 , b.SUB_INDUSTRY
+	 , b.SUB_INDUSTRY_ID
+	 , b.SUB_SUB_INDUSTRY 
+	 , b.SUB_SUB_INDUSTRY_ID
+from (select a.*
+	  , CHILD.INDUSTRY AS SUB_SUB_INDUSTRY
+	  , CHILD.INDUSTRY_ID AS SUB_SUB_INDUSTRY_ID
+	  from (select PARENT.*
+				 , CHILD.INDUSTRY_ID AS SUB_INDUSTRY_ID
+				 , CHILD.INDUSTRY AS SUB_INDUSTRY 
+			from glglive.[taxonomy].[INDUSTRY] AS PARENT 
+			join glglive.[taxonomy].[INDUSTRY] AS CHILD 
+			on PARENT.INDUSTRY_ID=CHILD.PARENT_INDUSTRY_ID
+			where PARENT.PARENT_INDUSTRY_ID is null
+			) a
+	   left join glglive.[taxonomy].[INDUSTRY] AS CHILD 
+	   on a.SUB_INDUSTRY_ID=CHILD.PARENT_INDUSTRY_ID
+	   ) b
+order by b.INDUSTRY
+
+
+
 --Method A:use Company name to join ciqNativeCompanyNames and d_council_member_work_history
+--select d.*, c.INDUSTRY from(
 select distinct d_council_member_work_history.COMPANY_ID
 			  , b.ciqid
 			  , d_council_member_work_history.COMPANY_NAME
@@ -27,7 +54,20 @@ join (select distinct d_council_member_work_history.COMPANY_ID
 	  where d_council_member_work_history.COMPANY_ID is not NULL
 	  ) b 
 on d_council_member_work_history.COMPANY_ID=b.COMPANY_ID
+/*) d
+left join (select a.*, glglive.[taxonomy].[INDUSTRY].INDUSTRY from
+(select COMPANY_ID, INDUSTRY_ID from glglive.taxonomy.COMPANY_INDUSTRY_RELATION) a
+join glglive.[taxonomy].[INDUSTRY] on a.INDUSTRY_ID=glglive.[taxonomy].[INDUSTRY].INDUSTRY_ID) c 
+on d.COMPANY_ID=c.COMPANY_ID*/
 order by d_council_member_work_history.COMPANY_ID
+
+/*select a.*, glglive.[taxonomy].[INDUSTRY].INDUSTRY from
+(select COMPANY_ID, INDUSTRY_ID from glglive.taxonomy.COMPANY_INDUSTRY_RELATION) a
+join glglive.[taxonomy].[INDUSTRY] on a.INDUSTRY_ID=glglive.[taxonomy].[INDUSTRY].INDUSTRY_ID
+where a.COMPANY_ID=122606
+
+select * from glglive.taxonomy.COMPANY_INDUSTRY_RELATION
+where COMPANY_ID=11508*/
 
 
 --Method B:use glglive.[curator].[CapiqMatching] as key to join two tables
@@ -59,7 +99,6 @@ order by b.CompanyId
 
 
 select* from #trans
---where CapIqId=9935271
 order by CapIqId
 
 
@@ -78,30 +117,12 @@ WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
 where --d_council_member_work_history.COMPANY_ID =25194 or d_council_member_work_history.COMPANY_ID =47902
 --d_council_member_work_history.COMPANY_ID =291196 or d_council_member_work_history.COMPANY_ID =254602 or
 --d_council_member_work_history.COMPANY_ID =320562
-d_council_member_work_history.COMPANY_ID =3168916
---d_council_member_work_history.COMPANY_ID =451924
+--d_council_member_work_history.COMPANY_ID =3168916
 --d_council_member_work_history.COMPANY_ID =426321
---d_council_member_work_history.COMPANY_NAME like '%ALIBABA%'
-order by d_council_member_work_history.COUNCIL_MEMBER_ID,d_council_member_work_history.COMPANY_NAME
+--d_council_member_work_history.COMPANY_ID =1120132
+d_council_member_work_history.COMPANY_NAME like '%alibaba%'
+order by d_council_member_work_history.COMPANY_ID,d_council_member_work_history.COMPANY_NAME
 
-
---taxonomy
-select b.INDUSTRY
-	 , b.SUB_INDUSTRY
-	 , b.SUB_SUB_INDUSTRY 
-from (select a.*, CHILD.INDUSTRY AS SUB_SUB_INDUSTRY 
-	  from (select PARENT.*
-				 , CHILD.INDUSTRY_ID AS SUB_INDUSTRY_ID
-				 , CHILD.INDUSTRY AS SUB_INDUSTRY 
-			from glglive.[taxonomy].[INDUSTRY] AS PARENT 
-			join glglive.[taxonomy].[INDUSTRY] AS CHILD 
-			on PARENT.INDUSTRY_ID=CHILD.PARENT_INDUSTRY_ID
-			where PARENT.PARENT_INDUSTRY_ID is null
-			) a
-	   left join glglive.[taxonomy].[INDUSTRY] AS CHILD 
-	   on a.SUB_INDUSTRY_ID=CHILD.PARENT_INDUSTRY_ID
-	   ) b
-order by b.INDUSTRY
 
 
 --show COMPANY_SUBSIDIARY_RELATION
