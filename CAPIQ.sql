@@ -1,5 +1,5 @@
 Select * FROM glglive.[taxonomy].[INDUSTRY]
-Select top 100000* FROM glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
+Select top 1000* FROM glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
 Select * FROM CAPIQ.dbo.ciqNativeCompanyNames
 --where companyId=9935271
 order by companyId
@@ -31,11 +31,13 @@ order by b.INDUSTRY
 
 
 --Method A:use Company name to join ciqNativeCompanyNames and d_council_member_work_history
+drop table if exists #MA
 --select d.*, c.INDUSTRY from(
 select distinct d_council_member_work_history.COMPANY_ID
 			  , b.ciqid
 			  , d_council_member_work_history.COMPANY_NAME
 			  , b.nativeName 
+into #MA
 from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history 
 join (select distinct d_council_member_work_history.COMPANY_ID
 					, a.companyId as ciqid
@@ -59,7 +61,9 @@ left join (select a.*, glglive.[taxonomy].[INDUSTRY].INDUSTRY from
 (select COMPANY_ID, INDUSTRY_ID from glglive.taxonomy.COMPANY_INDUSTRY_RELATION) a
 join glglive.[taxonomy].[INDUSTRY] on a.INDUSTRY_ID=glglive.[taxonomy].[INDUSTRY].INDUSTRY_ID) c 
 on d.COMPANY_ID=c.COMPANY_ID*/
-order by d_council_member_work_history.COMPANY_ID
+
+select * from #MA
+order by COMPANY_ID
 
 /*select a.*, glglive.[taxonomy].[INDUSTRY].INDUSTRY from
 (select COMPANY_ID, INDUSTRY_ID from glglive.taxonomy.COMPANY_INDUSTRY_RELATION) a
@@ -69,6 +73,22 @@ where a.COMPANY_ID=122606
 select * from glglive.taxonomy.COMPANY_INDUSTRY_RELATION
 where COMPANY_ID=11508*/
 
+
+drop table if exists #list
+select distinct d_council_member_work_history.COMPANY_ID 
+into #list
+from WARS.bi.D_COUNCIL_MEMBER RCM 
+join WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
+on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
+where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%') 
+and RCM.TERMS_CONDITIONS_ACTIVE=1
+and d_council_member_work_history.COMPANY_ID is not null
+
+
+select distinct COMPANY_ID from #MA
+where COMPANY_ID in (select * from #list)
+
+select * from #list
 
 --Method B:use glglive.[curator].[CapiqMatching] as key to join two tables
 Select * FROM glglive.[curator].[CapiqMatching]
@@ -101,13 +121,19 @@ order by b.CompanyId
 select* from #trans
 order by CapIqId
 
-
-select distinct d_council_member_work_history.COMPANY_ID,#trans.CapIqId
-			  , d_council_member_work_history.COMPANY_NAME
-			  , #trans.nativeName from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history 
-join #trans on d_council_member_work_history.COMPANY_ID=#trans.CompanyId
+drop table if exists #MB
+select distinct d_council_member_work_history.COMPANY_ID
+				,#trans.CapIqId
+				, d_council_member_work_history.COMPANY_NAME
+				, #trans.nativeName 
+				into #MB 
+				from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history 
+				join #trans on d_council_member_work_history.COMPANY_ID=#trans.CompanyId
 --where d_council_member_work_history.COMPANY_ID=1117373
-order by d_council_member_work_history.COMPANY_ID
+
+
+select distinct COMPANY_ID from #MB
+where COMPANY_ID in (select * from #list)
 
 
 
