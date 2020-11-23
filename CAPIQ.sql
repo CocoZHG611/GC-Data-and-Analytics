@@ -1,4 +1,4 @@
-Select * FROM glglive.[taxonomy].[INDUSTRY]
+﻿Select * FROM glglive.[taxonomy].[INDUSTRY]
 Select top 1000* FROM glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
 Select * FROM CAPIQ.dbo.ciqNativeCompanyNames
 --where companyId=9935271
@@ -132,6 +132,10 @@ select distinct d_council_member_work_history.COMPANY_ID
 --where d_council_member_work_history.COMPANY_ID=1117373
 
 
+select * from #MB
+where COMPANY_ID=1117373
+order by COMPANY_ID
+
 select distinct COMPANY_ID from #MB
 where COMPANY_ID in (select * from #list)
 
@@ -146,7 +150,7 @@ where --d_council_member_work_history.COMPANY_ID =25194 or d_council_member_work
 --d_council_member_work_history.COMPANY_ID =3168916
 --d_council_member_work_history.COMPANY_ID =426321
 --d_council_member_work_history.COMPANY_ID =1120132
-d_council_member_work_history.COMPANY_NAME like '%alibaba%'
+d_council_member_work_history.COMPANY_NAME like '%tencent%' or d_council_member_work_history.COMPANY_NAME like '%腾讯%'
 order by d_council_member_work_history.COMPANY_ID,d_council_member_work_history.COMPANY_NAME
 
 
@@ -178,7 +182,8 @@ END
 
 
 select * from #temp 
-where LEVEL=25
+--where LEVEL=25
+where COMPANY_ID=2114637
 order by LEVEL, COMPANY_ID, MEMBER_COMPANY_ID
 
 
