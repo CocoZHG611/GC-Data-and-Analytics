@@ -75,14 +75,28 @@ where COMPANY_ID=11508*/
 
 
 drop table if exists #list
-select distinct d_council_member_work_history.COMPANY_ID 
-into #list
-from WARS.bi.D_COUNCIL_MEMBER RCM 
-join WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
-on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
-where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%') 
-and RCM.TERMS_CONDITIONS_ACTIVE=1
-and d_council_member_work_history.COMPANY_ID is not null
+select distinct COMPANY_ID 
+into #list 
+from (select RCM.COUNCIL_MEMBER_ID
+		   , d_council_member_work_history.COMPANY_ID
+		   , d_council_member_work_history.START_YEAR
+		   , d_council_member_work_history.START_MONTH
+		   , rank() over(partition by RCM.COUNCIL_MEMBER_ID 
+						 order by d_council_member_work_history.START_YEAR desc
+								, d_council_member_work_history.START_MONTH desc
+						) ranks
+	   from WARS.bi.D_COUNCIL_MEMBER RCM 
+	   join WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
+	   on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
+	   where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%') 
+	   and RCM.TERMS_CONDITIONS_ACTIVE=1
+	   and d_council_member_work_history.COMPANY_ID is not null
+	   group by RCM.COUNCIL_MEMBER_ID
+			  , d_council_member_work_history.COMPANY_ID
+			  , d_council_member_work_history.START_YEAR
+			  , d_council_member_work_history.START_MONTH
+	  ) a
+where ranks<=2
 
 
 select distinct COMPANY_ID from #MA
@@ -133,7 +147,7 @@ select distinct d_council_member_work_history.COMPANY_ID
 
 
 select * from #MB
-where COMPANY_ID=1117373
+--where COMPANY_ID=1117373
 order by COMPANY_ID
 
 select distinct COMPANY_ID from #MB
@@ -206,3 +220,35 @@ from (SELECT a.COMPANY_ID
 	  ) c
 group by c.COMPANY_ID
 order by LEVEL, c.COMPANY_ID
+
+
+
+
+select distinct COMPANY_ID
+			  , COMPANY_NAME 
+from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
+where (d_council_member_work_history.COMPANY_NAME like '%tencent%' or d_council_member_work_history.COMPANY_NAME like '%腾讯%')
+and COMPANY_ID not in (select distinct MEMBER_COMPANY_ID 
+					   from #temp 
+					   where COMPANY_ID=2114637)
+order by d_council_member_work_history.COMPANY_ID
+
+
+select distinct MEMBER_COMPANY_ID 
+from #temp 
+where COMPANY_ID=2114637
+and MEMBER_COMPANY_ID not in(select distinct COMPANY_ID 
+							 from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
+							 where (d_council_member_work_history.COMPANY_NAME like '%tencent%' or d_council_member_work_history.COMPANY_NAME like '%腾讯%') 
+							 and COMPANY_ID is not null)
+order by MEMBER_COMPANY_ID
+
+
+select distinct COMPANY_ID, COMPANY_NAME 
+from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
+where (d_council_member_work_history.COMPANY_NAME like '%tencent%' or d_council_member_work_history.COMPANY_NAME like '%腾讯%')
+and COMPANY_ID in (select distinct MEMBER_COMPANY_ID from #temp where LEVEL=25)
+order by d_council_member_work_history.COMPANY_ID
+
+select * from #temp 
+where LEVEL=25 and(MEMBER_COMPANY_ID=288374 or MEMBER_COMPANY_ID=3046393 or MEMBER_COMPANY_ID=3307937 or MEMBER_COMPANY_ID=6485700)
