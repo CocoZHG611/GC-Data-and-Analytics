@@ -1,9 +1,18 @@
 ﻿Select * FROM glglive.[taxonomy].[INDUSTRY]
-Select top 1000* FROM glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
+Select top 100* FROM glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
 Select * FROM CAPIQ.dbo.ciqNativeCompanyNames
 --where companyId=9935271
 order by companyId
 
+drop table if exists #d_council_member_work_history_TC_signed 
+select * into #d_council_member_work_history_TC_signed 
+from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY
+where council_member_id in  (SELECT distinct COUNCIL_MEMBER_ID
+							 FROM WARS.BI.D_COUNCIL_MEMBER
+							 WHERE TERMS_CONDITIONS_START_DATE IS NOT NULL and country like '%China%'
+							 GROUP BY COUNCIL_MEMBER_ID)
+
+select top 10* from #d_council_member_work_history_TC_signed 
 
 --taxonomy
 select b.INDUSTRY
@@ -38,13 +47,13 @@ select distinct d_council_member_work_history.COMPANY_ID
 			  , d_council_member_work_history.COMPANY_NAME
 			  , b.nativeName 
 into #MA
-from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history 
+from #d_council_member_work_history_TC_signed AS d_council_member_work_history 
 join (select distinct d_council_member_work_history.COMPANY_ID
 					, a.companyId as ciqid
 				    , d_council_member_work_history.COMPANY_NAME
 				    , a.companyName as cn
 					, a.nativeName 
-	  from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history 
+	  from #d_council_member_work_history_TC_signed AS d_council_member_work_history 
 	  join (Select distinct CAPIQ.dbo.ciqNativeCompanyNames.companyId
 						  , CAPIQ.dbo.ciqNativeCompanyNames.nativeName
 						  , CAPIQ.dbo.ciqCompany.companyName
@@ -86,7 +95,7 @@ from (select RCM.COUNCIL_MEMBER_ID
 								, d_council_member_work_history.START_MONTH desc
 						) ranks
 	   from WARS.bi.D_COUNCIL_MEMBER RCM 
-	   join WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
+	   join #d_council_member_work_history_TC_signed AS d_council_member_work_history
 	   on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
 	   where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%') 
 	   and RCM.TERMS_CONDITIONS_ACTIVE=1
@@ -137,12 +146,12 @@ order by CapIqId
 
 drop table if exists #MB
 select distinct d_council_member_work_history.COMPANY_ID
-				,#trans.CapIqId
-				, d_council_member_work_history.COMPANY_NAME
-				, #trans.nativeName 
-				into #MB 
-				from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history 
-				join #trans on d_council_member_work_history.COMPANY_ID=#trans.CompanyId
+			   ,#trans.CapIqId
+			   , d_council_member_work_history.COMPANY_NAME
+			   , #trans.nativeName 
+into #MB 
+from #d_council_member_work_history_TC_signed  AS d_council_member_work_history 
+join #trans on d_council_member_work_history.COMPANY_ID=#trans.CompanyId
 --where d_council_member_work_history.COMPANY_ID=1117373
 
 
@@ -157,7 +166,7 @@ where COMPANY_ID in (select * from #list)
 
 --check ID in work history table
 select * from 
-WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
+#d_council_member_work_history_TC_signed AS d_council_member_work_history
 where --d_council_member_work_history.COMPANY_ID =25194 or d_council_member_work_history.COMPANY_ID =47902
 --d_council_member_work_history.COMPANY_ID =291196 or d_council_member_work_history.COMPANY_ID =254602 or
 --d_council_member_work_history.COMPANY_ID =320562
@@ -165,6 +174,7 @@ where --d_council_member_work_history.COMPANY_ID =25194 or d_council_member_work
 --d_council_member_work_history.COMPANY_ID =426321
 --d_council_member_work_history.COMPANY_ID =1120132
 d_council_member_work_history.COMPANY_NAME like '%tencent%' or d_council_member_work_history.COMPANY_NAME like '%腾讯%'
+or d_council_member_work_history.COMPANY_NAME like '%Tengxun%'
 order by d_council_member_work_history.COMPANY_ID,d_council_member_work_history.COMPANY_NAME
 
 
@@ -196,8 +206,9 @@ END
 
 
 select * from #temp 
---where LEVEL=25
-where COMPANY_ID=2114637
+where LEVEL=25
+--where COMPANY_ID=2114637
+--where COMPANY_ID=2066060 or COMPANY_ID=10756646 or COMPANY_ID=20728580
 order by LEVEL, COMPANY_ID, MEMBER_COMPANY_ID
 
 
@@ -226,11 +237,14 @@ order by LEVEL, c.COMPANY_ID
 
 select distinct COMPANY_ID
 			  , COMPANY_NAME 
-from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
-where (d_council_member_work_history.COMPANY_NAME like '%tencent%' or d_council_member_work_history.COMPANY_NAME like '%腾讯%')
+from #d_council_member_work_history_TC_signed AS d_council_member_work_history
+where (d_council_member_work_history.COMPANY_NAME like '%tencent%' 
+	or d_council_member_work_history.COMPANY_NAME like '%腾讯%' 
+	or d_council_member_work_history.COMPANY_NAME like '%Tengxun%')
 and COMPANY_ID not in (select distinct MEMBER_COMPANY_ID 
 					   from #temp 
 					   where COMPANY_ID=2114637)
+and COMPANY_ID!=2114637
 order by d_council_member_work_history.COMPANY_ID
 
 
@@ -238,17 +252,70 @@ select distinct MEMBER_COMPANY_ID
 from #temp 
 where COMPANY_ID=2114637
 and MEMBER_COMPANY_ID not in(select distinct COMPANY_ID 
-							 from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
-							 where (d_council_member_work_history.COMPANY_NAME like '%tencent%' or d_council_member_work_history.COMPANY_NAME like '%腾讯%') 
+							 from #d_council_member_work_history_TC_signed AS d_council_member_work_history
+							 where (d_council_member_work_history.COMPANY_NAME like '%tencent%' 
+								 or d_council_member_work_history.COMPANY_NAME like '%腾讯%'
+								 or d_council_member_work_history.COMPANY_NAME like '%Tengxun%') 
 							 and COMPANY_ID is not null)
 order by MEMBER_COMPANY_ID
 
 
 select distinct COMPANY_ID, COMPANY_NAME 
-from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
-where (d_council_member_work_history.COMPANY_NAME like '%tencent%' or d_council_member_work_history.COMPANY_NAME like '%腾讯%')
+from #d_council_member_work_history_TC_signed AS d_council_member_work_history
+where (d_council_member_work_history.COMPANY_NAME like '%tencent%' 
+	or d_council_member_work_history.COMPANY_NAME like '%腾讯%'
+	or d_council_member_work_history.COMPANY_NAME like '%Tengxun%')
 and COMPANY_ID in (select distinct MEMBER_COMPANY_ID from #temp where LEVEL=25)
 order by d_council_member_work_history.COMPANY_ID
 
+
 select * from #temp 
 where LEVEL=25 and(MEMBER_COMPANY_ID=288374 or MEMBER_COMPANY_ID=3046393 or MEMBER_COMPANY_ID=3307937 or MEMBER_COMPANY_ID=6485700)
+
+
+/*select distinct COMPANY_ID
+			  , COMPANY_NAME 
+from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY AS d_council_member_work_history
+where (d_council_member_work_history.COMPANY_NAME like '%baidu%' 
+	or d_council_member_work_history.COMPANY_NAME like '%百度%')
+and COMPANY_ID not in (select distinct MEMBER_COMPANY_ID 
+					   from #temp 
+					   where COMPANY_ID=2066060)
+and COMPANY_ID != 2066060
+order by d_council_member_work_history.COMPANY_ID*/
+
+
+drop table if exists #list
+select distinct COMPANY_ID 
+into #list 
+from (select RCM.COUNCIL_MEMBER_ID
+		   , d_council_member_work_history.COMPANY_ID
+		   , d_council_member_work_history.START_YEAR
+		   , d_council_member_work_history.START_MONTH
+		   , rank() over(partition by RCM.COUNCIL_MEMBER_ID 
+						 order by d_council_member_work_history.START_YEAR desc
+								, d_council_member_work_history.START_MONTH desc
+						) ranks
+	   from WARS.bi.D_COUNCIL_MEMBER RCM 
+	   join #d_council_member_work_history_TC_signed AS d_council_member_work_history
+	   on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
+	   where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%') 
+	   and RCM.TERMS_CONDITIONS_ACTIVE=1
+	   and d_council_member_work_history.COMPANY_ID is not null
+	   group by RCM.COUNCIL_MEMBER_ID
+			  , d_council_member_work_history.COMPANY_ID
+			  , d_council_member_work_history.START_YEAR
+			  , d_council_member_work_history.START_MONTH
+	  ) a
+where ranks<=2
+
+select b.COUNCIL_MEMBER_ID, sum(b.projects) projects from
+(select a.*, RCM.COUNCIL_MEMBER_ID from
+(select D_COUNCIL_MEMBER_KEY,COUNT(PROJECT_ID) AS projects
+from WARS.bi.F_TPV
+where YEAR(TPV_DATE)>=2018
+group by  D_COUNCIL_MEMBER_KEY) a join WARS.bi.D_COUNCIL_MEMBER RCM
+on a.D_COUNCIL_MEMBER_KEY=RCM.D_COUNCIL_MEMBER_KEY) b
+group by b.COUNCIL_MEMBER_ID
+order by b.COUNCIL_MEMBER_ID 
+
