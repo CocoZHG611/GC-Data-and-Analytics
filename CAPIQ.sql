@@ -163,6 +163,53 @@ select distinct COMPANY_ID from #MB
 where COMPANY_ID in (select * from #list)
 
 
+drop table if exists #list2
+select distinct COUNCIL_MEMBER_ID,COMPANY_ID 
+into #list2 
+from (select RCM.COUNCIL_MEMBER_ID
+		   , d_council_member_work_history.COMPANY_ID
+		   , d_council_member_work_history.START_YEAR
+		   , d_council_member_work_history.START_MONTH
+		   , rank() over(partition by RCM.COUNCIL_MEMBER_ID 
+						 order by d_council_member_work_history.START_YEAR desc
+								, d_council_member_work_history.START_MONTH desc
+						) ranks
+	   from WARS.bi.D_COUNCIL_MEMBER RCM 
+	   join #d_council_member_work_history_TC_signed AS d_council_member_work_history
+	   on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
+	   where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%') 
+	   and RCM.TERMS_CONDITIONS_ACTIVE=1
+	   and d_council_member_work_history.COMPANY_ID is not null
+	   group by RCM.COUNCIL_MEMBER_ID
+			  , d_council_member_work_history.COMPANY_ID
+			  , d_council_member_work_history.START_YEAR
+			  , d_council_member_work_history.START_MONTH
+	  ) a
+where ranks=1
+order by COUNCIL_MEMBER_ID
+
+drop table if exists #perc
+select b.COUNCIL_MEMBER_ID, sum(b.projects) projects into #perc from
+(select a.*, RCM.COUNCIL_MEMBER_ID from
+(select D_COUNCIL_MEMBER_KEY,COUNT(PROJECT_ID) AS projects
+from WARS.bi.F_TPV
+where YEAR(TPV_DATE)>=2018
+group by  D_COUNCIL_MEMBER_KEY) a join WARS.bi.D_COUNCIL_MEMBER RCM
+on a.D_COUNCIL_MEMBER_KEY=RCM.D_COUNCIL_MEMBER_KEY
+where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%')) b
+group by b.COUNCIL_MEMBER_ID
+order by b.COUNCIL_MEMBER_ID 
+
+select sum(projects) from #perc
+
+select sum(projects) from #perc 
+where COUNCIL_MEMBER_ID in 
+(select distinct #list2.COUNCIL_MEMBER_ID from #MA join #list2 on #MA.COMPANY_ID=#list2.COMPANY_ID)
+
+select sum(projects) from #perc 
+where COUNCIL_MEMBER_ID in 
+(select distinct #list2.COUNCIL_MEMBER_ID from #MB join #list2 on #MB.COMPANY_ID=#list2.COMPANY_ID)
+
 
 --check ID in work history table
 select * from 
@@ -283,39 +330,4 @@ and COMPANY_ID not in (select distinct MEMBER_COMPANY_ID
 					   where COMPANY_ID=2066060)
 and COMPANY_ID != 2066060
 order by d_council_member_work_history.COMPANY_ID*/
-
-
-drop table if exists #list
-select distinct COMPANY_ID 
-into #list 
-from (select RCM.COUNCIL_MEMBER_ID
-		   , d_council_member_work_history.COMPANY_ID
-		   , d_council_member_work_history.START_YEAR
-		   , d_council_member_work_history.START_MONTH
-		   , rank() over(partition by RCM.COUNCIL_MEMBER_ID 
-						 order by d_council_member_work_history.START_YEAR desc
-								, d_council_member_work_history.START_MONTH desc
-						) ranks
-	   from WARS.bi.D_COUNCIL_MEMBER RCM 
-	   join #d_council_member_work_history_TC_signed AS d_council_member_work_history
-	   on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
-	   where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%') 
-	   and RCM.TERMS_CONDITIONS_ACTIVE=1
-	   and d_council_member_work_history.COMPANY_ID is not null
-	   group by RCM.COUNCIL_MEMBER_ID
-			  , d_council_member_work_history.COMPANY_ID
-			  , d_council_member_work_history.START_YEAR
-			  , d_council_member_work_history.START_MONTH
-	  ) a
-where ranks<=2
-
-select b.COUNCIL_MEMBER_ID, sum(b.projects) projects from
-(select a.*, RCM.COUNCIL_MEMBER_ID from
-(select D_COUNCIL_MEMBER_KEY,COUNT(PROJECT_ID) AS projects
-from WARS.bi.F_TPV
-where YEAR(TPV_DATE)>=2018
-group by  D_COUNCIL_MEMBER_KEY) a join WARS.bi.D_COUNCIL_MEMBER RCM
-on a.D_COUNCIL_MEMBER_KEY=RCM.D_COUNCIL_MEMBER_KEY) b
-group by b.COUNCIL_MEMBER_ID
-order by b.COUNCIL_MEMBER_ID 
 
