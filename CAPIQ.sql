@@ -12,7 +12,6 @@ where council_member_id in  (SELECT distinct COUNCIL_MEMBER_ID
 							 WHERE TERMS_CONDITIONS_START_DATE IS NOT NULL and country like '%China%'
 							 GROUP BY COUNCIL_MEMBER_ID)
 
-select top 10* from #d_council_member_work_history_TC_signed 
 
 --taxonomy
 select b.INDUSTRY
@@ -82,7 +81,7 @@ where a.COMPANY_ID=122606
 select * from glglive.taxonomy.COMPANY_INDUSTRY_RELATION
 where COMPANY_ID=11508*/
 
-
+--CM list of CM country in China/Hong Kong/Taiwan and CMs that have at least signs T&C once
 drop table if exists #list
 select distinct COMPANY_ID 
 into #list 
@@ -163,6 +162,7 @@ select distinct COMPANY_ID from #MB
 where COMPANY_ID in (select * from #list)
 
 
+--Perc of Projects done by China CM’s in 2018/2019/2020 whose LATEST Employment that are associated with a CapIQ ID
 drop table if exists #list2
 select distinct COUNCIL_MEMBER_ID,COMPANY_ID 
 into #list2 
@@ -193,7 +193,7 @@ select b.COUNCIL_MEMBER_ID, sum(b.projects) projects into #perc from
 (select a.*, RCM.COUNCIL_MEMBER_ID from
 (select D_COUNCIL_MEMBER_KEY,COUNT(PROJECT_ID) AS projects
 from WARS.bi.F_TPV
-where YEAR(TPV_DATE)>=2018
+where YEAR(TPV_DATE)=2020
 group by  D_COUNCIL_MEMBER_KEY) a join WARS.bi.D_COUNCIL_MEMBER RCM
 on a.D_COUNCIL_MEMBER_KEY=RCM.D_COUNCIL_MEMBER_KEY
 where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%')) b
@@ -281,7 +281,7 @@ order by LEVEL, c.COMPANY_ID
 
 
 
-
+--find company ID in work history v.s. hierarchy
 select distinct COMPANY_ID
 			  , COMPANY_NAME 
 from #d_council_member_work_history_TC_signed AS d_council_member_work_history
