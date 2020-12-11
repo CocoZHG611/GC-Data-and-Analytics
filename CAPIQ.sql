@@ -1,15 +1,17 @@
-﻿Select * FROM glglive.[taxonomy].[INDUSTRY]
+﻿--explore data
+Select * FROM glglive.[taxonomy].[INDUSTRY]
 Select top 100* FROM glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
 Select * FROM CAPIQ.dbo.ciqNativeCompanyNames
 --where companyId=9935271
 order by companyId
 
+--select all CM with TC signed at least once and country= China
 drop table if exists #d_council_member_work_history_TC_signed 
 select * into #d_council_member_work_history_TC_signed 
 from WARS.bi.D_COUNCIL_MEMBER_WORK_HISTORY
 where council_member_id in  (SELECT distinct COUNCIL_MEMBER_ID
 							 FROM WARS.BI.D_COUNCIL_MEMBER
-							 WHERE TERMS_CONDITIONS_START_DATE IS NOT NULL and country like '%China%'
+							 WHERE TERMS_CONDITIONS_START_DATE IS NOT NULL and (country like '%China%' or country like '%Taiwan%' or country like '%Hong Kong%')
 							 GROUP BY COUNCIL_MEMBER_ID)
 
 
@@ -39,7 +41,7 @@ order by b.INDUSTRY
 
 
 --Method A:use Company name to join ciqNativeCompanyNames and d_council_member_work_history
-drop table if exists #MA
+/*drop table if exists #MA
 --select d.*, c.INDUSTRY from(
 select distinct d_council_member_work_history.COMPANY_ID
 			  , b.ciqid
@@ -71,7 +73,7 @@ join glglive.[taxonomy].[INDUSTRY] on a.INDUSTRY_ID=glglive.[taxonomy].[INDUSTRY
 on d.COMPANY_ID=c.COMPANY_ID*/
 
 select * from #MA
-order by COMPANY_ID
+order by COMPANY_ID*/
 
 /*select a.*, glglive.[taxonomy].[INDUSTRY].INDUSTRY from
 (select COMPANY_ID, INDUSTRY_ID from glglive.taxonomy.COMPANY_INDUSTRY_RELATION) a
@@ -81,88 +83,58 @@ where a.COMPANY_ID=122606
 select * from glglive.taxonomy.COMPANY_INDUSTRY_RELATION
 where COMPANY_ID=11508*/
 
---CM list of CM country in China/Hong Kong/Taiwan and CMs that have at least signs T&C once
+--Company list in CM work history of CM country in China/Hong Kong/Taiwan and CMs that have at least signs T&C once
 drop table if exists #list
-select distinct COMPANY_ID 
+select distinct a.COMPANY_ID 
 into #list 
 from (select RCM.COUNCIL_MEMBER_ID
 		   , d_council_member_work_history.COMPANY_ID
 		   , d_council_member_work_history.START_YEAR
 		   , d_council_member_work_history.START_MONTH
-		   , rank() over(partition by RCM.COUNCIL_MEMBER_ID 
+		   /*, rank() over(partition by RCM.COUNCIL_MEMBER_ID 
 						 order by d_council_member_work_history.START_YEAR desc
 								, d_council_member_work_history.START_MONTH desc
-						) ranks
+						) ranks*/
 	   from WARS.bi.D_COUNCIL_MEMBER RCM 
 	   join #d_council_member_work_history_TC_signed AS d_council_member_work_history
 	   on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
-	   where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%') 
-	   and RCM.TERMS_CONDITIONS_ACTIVE=1
+	   where d_council_member_work_history.START_YEAR>=2015
 	   and d_council_member_work_history.COMPANY_ID is not null
 	   group by RCM.COUNCIL_MEMBER_ID
 			  , d_council_member_work_history.COMPANY_ID
 			  , d_council_member_work_history.START_YEAR
 			  , d_council_member_work_history.START_MONTH
 	  ) a
-where ranks<=2
+--where ranks<=2
 
 
-select distinct COMPANY_ID from #MA
-where COMPANY_ID in (select * from #list)
+--select distinct COMPANY_ID from #MA
+--where COMPANY_ID in (select * from #list)
 
 select * from #list
 
---Method B:use glglive.[curator].[CapiqMatching] as key to join two tables
-Select * FROM glglive.[curator].[CapiqMatching]
---where CompanyId=1117373
-order by companyId
+--Method B:use glglive.dbo.company as key to join two tables
+select top 100* from glglive.dbo.COMPANY
+select top 100* from glglive.dbo.council_member_job_function_relation
 
+drop table if exists #Match
+select #list.COMPANY_ID, a.nativeName,c.companyName,b.CIQID
+into #Match
+from #list
+join glglive.dbo.company b on #list.COMPANY_ID=b.COMPANY_ID
+left join CAPIQ.dbo.ciqCompany c on b.CIQID=c.companyId
+left join CAPIQ.dbo.ciqNativeCompanyNames a on a.companyId=b.CIQID
+order by #list.COMPANY_ID
 
-drop table if exists #trans
-select b.CompanyId, a.companyId as CapIqId, a.nativeName, a.companyName 
-into #trans 
-from(Select distinct CAPIQ.dbo.ciqNativeCompanyNames.companyId
-				   , CAPIQ.dbo.ciqNativeCompanyNames.nativeName
-				   , CAPIQ.dbo.ciqCompany.companyName
-	 FROM CAPIQ.dbo.ciqNativeCompanyNames 
-	 join CAPIQ.dbo.ciqCompany
-	 on CAPIQ.dbo.ciqNativeCompanyNames.companyId=CAPIQ.dbo.ciqCompany.companyId
-	) a 
-join (select distinct a.CompanyId, a.CapIqId 
-	  FROM glglive.[curator].[CapiqMatching] a 
-	  inner join (select CompanyId, max(MatchDate) MatchDate 
-				  FROM glglive.[curator].[CapiqMatching]
-				  group by CompanyId
-				  ) b 
-	  on a.CompanyId=b.CompanyId and a.MatchDate=b.MatchDate
-	  ) b
-on a.companyId=b.CapIqId
-order by b.CompanyId
-
-
-select* from #trans
-order by CapIqId
-
-drop table if exists #MB
-select distinct d_council_member_work_history.COMPANY_ID
-			   ,#trans.CapIqId
-			   , d_council_member_work_history.COMPANY_NAME
-			   , #trans.nativeName 
-into #MB 
-from #d_council_member_work_history_TC_signed  AS d_council_member_work_history 
-join #trans on d_council_member_work_history.COMPANY_ID=#trans.CompanyId
---where d_council_member_work_history.COMPANY_ID=1117373
-
-
-select * from #MB
+select * from #Match
 --where COMPANY_ID=1117373
 order by COMPANY_ID
 
-select distinct COMPANY_ID from #MB
-where COMPANY_ID in (select * from #list)
+select distinct COMPANY_ID from #Match
+where COMPANY_ID is not null and nativeName is not null and companyName is not null and CIQID is not null
 
 
---Perc of Projects done by China CM’s in 2018/2019/2020 whose LATEST Employment that are associated with a CapIQ ID
+--Perc of Projects done by China CM’s in 2018/2019/2020 whose work history after 2015 that are associated with a CapIQ ID
 drop table if exists #list2
 select distinct COUNCIL_MEMBER_ID,COMPANY_ID 
 into #list2 
@@ -170,45 +142,52 @@ from (select RCM.COUNCIL_MEMBER_ID
 		   , d_council_member_work_history.COMPANY_ID
 		   , d_council_member_work_history.START_YEAR
 		   , d_council_member_work_history.START_MONTH
-		   , rank() over(partition by RCM.COUNCIL_MEMBER_ID 
+		   /*, rank() over(partition by RCM.COUNCIL_MEMBER_ID 
 						 order by d_council_member_work_history.START_YEAR desc
 								, d_council_member_work_history.START_MONTH desc
-						) ranks
+						) ranks*/
 	   from WARS.bi.D_COUNCIL_MEMBER RCM 
 	   join #d_council_member_work_history_TC_signed AS d_council_member_work_history
 	   on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
-	   where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%') 
-	   and RCM.TERMS_CONDITIONS_ACTIVE=1
+	   where d_council_member_work_history.START_YEAR>=2015
 	   and d_council_member_work_history.COMPANY_ID is not null
 	   group by RCM.COUNCIL_MEMBER_ID
 			  , d_council_member_work_history.COMPANY_ID
 			  , d_council_member_work_history.START_YEAR
 			  , d_council_member_work_history.START_MONTH
 	  ) a
-where ranks=1
+--where ranks=1
 order by COUNCIL_MEMBER_ID
 
+
 drop table if exists #perc
-select b.COUNCIL_MEMBER_ID, sum(b.projects) projects into #perc from
-(select a.*, RCM.COUNCIL_MEMBER_ID from
-(select D_COUNCIL_MEMBER_KEY,COUNT(PROJECT_ID) AS projects
-from WARS.bi.F_TPV
-where YEAR(TPV_DATE)=2020
-group by  D_COUNCIL_MEMBER_KEY) a join WARS.bi.D_COUNCIL_MEMBER RCM
-on a.D_COUNCIL_MEMBER_KEY=RCM.D_COUNCIL_MEMBER_KEY
-where (RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%')) b
+select b.COUNCIL_MEMBER_ID
+	 , sum(b.projects) projects 
+into #perc 
+from (select a.*
+		   , RCM.COUNCIL_MEMBER_ID 
+	  from(select D_COUNCIL_MEMBER_KEY
+				 ,COUNT(PROJECT_ID) AS projects
+		   from WARS.bi.F_TPV
+		   where YEAR(TPV_DATE)=2018 --or YEAR(TPV_DATE)=2019 or YEAR(TPV_DATE)=2020 
+		   group by  D_COUNCIL_MEMBER_KEY
+		  ) a 
+	  join WARS.bi.D_COUNCIL_MEMBER RCM on a.D_COUNCIL_MEMBER_KEY=RCM.D_COUNCIL_MEMBER_KEY
+	  where RCM.country like '%Hong Kong%' or RCM.country like '%China%' or RCM.country like '%Taiwan%'
+	  ) b
 group by b.COUNCIL_MEMBER_ID
 order by b.COUNCIL_MEMBER_ID 
 
 select sum(projects) from #perc
 
-select sum(projects) from #perc 
-where COUNCIL_MEMBER_ID in 
-(select distinct #list2.COUNCIL_MEMBER_ID from #MA join #list2 on #MA.COMPANY_ID=#list2.COMPANY_ID)
+--select sum(projects) from #perc 
+--where COUNCIL_MEMBER_ID in 
+--(select distinct #list2.COUNCIL_MEMBER_ID from #MA join #list2 on #MA.COMPANY_ID=#list2.COMPANY_ID)
 
 select sum(projects) from #perc 
 where COUNCIL_MEMBER_ID in 
-(select distinct #list2.COUNCIL_MEMBER_ID from #MB join #list2 on #MB.COMPANY_ID=#list2.COMPANY_ID)
+(select distinct #list2.COUNCIL_MEMBER_ID from #Match join #list2 on #Match.COMPANY_ID=#list2.COMPANY_ID 
+where #Match.COMPANY_ID is not null and #Match.nativeName is not null and #Match.companyName is not null and #Match.CIQID is not null)
 
 
 --check ID in work history table
