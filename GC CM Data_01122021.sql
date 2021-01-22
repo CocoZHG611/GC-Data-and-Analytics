@@ -115,33 +115,54 @@ group by a.COMPANY_ID
 Order By 1
 
 
-select GCCM1.COMPANY_ID
+select distinct GCCM1.COMPANY_ID
 	 , GCCM1.Company_Create_Year
 	 , GCCM1.GLG_Company_Name
 	 , GCCM1.CIQ_ID
 	 , GCCM1.CIQ_Name
-	 , GCCM1.CIQ_Native_Name
-	 , GCCM1.CM_COUNT
 	 , CSRC.MEMBER_COMPANY_ID
 	 , CSRC.COMPANY_ID
 	 , company.COMPANY_ID
 	 , company.PRIMARY_NAME AS "GLG_Company_Name"
 	 , ciq.companyId AS "CIQ_ID"
 	 , ciq.companyName AS "CIQ_Name"
-	 , ciqlocal.nativeName AS "CIQ_Native_Name"
-from #GCCMCompany GCCM1 
-left join (select * from glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC] where ULTIMATE_PARENT_IND=1) CSRC on GCCM1.COMPANY_ID=CSRC.MEMBER_COMPANY_ID
+	 , GCCM1.CM_COUNT
+	 , GCCM1.CM_TPV
+	 , case when GCCM1.CIQ_ID is not null and CSRC.COMPANY_ID is not null and ciq.companyId is not null then 1
+			when GCCM1.CIQ_ID is not null and CSRC.COMPANY_ID is not null and ciq.companyId is null then 2
+			when GCCM1.CIQ_ID is not null and CSRC.COMPANY_ID is null then 3
+			when GCCM1.CIQ_ID is null and CSRC.COMPANY_ID is not null and ciq.companyId is not null then 4
+			when GCCM1.CIQ_ID is null and CSRC.COMPANY_ID is not null and ciq.companyId is null then 5
+			when GCCM1.CIQ_ID is null and CSRC.COMPANY_ID is null and ciq.companyId is null then 6 end as status
+from (select #GCCMCompany.*
+		   , CM.CM_TPV 
+	  from #GCCMCompany 
+	  left join (select distinct d_council_member_work_history.COMPANY_ID
+					  , COUNT(DISTINCT TPV.F_TPV_KEY) as CM_TPV
+				 from  WARS.bi.D_COUNCIL_MEMBER RCM 
+				 join #d_council_member_work_history_TC_signed AS d_council_member_work_history on RCM.COUNCIL_MEMBER_ID=d_council_member_work_history.COUNCIL_MEMBER_ID
+				 left join WARS.BI.F_TPV AS TPV ON RCM.D_COUNCIL_MEMBER_KEY = TPV.D_COUNCIL_MEMBER_KEY
+				 where d_council_member_work_history.START_YEAR>=2015 and d_council_member_work_history.COMPANY_ID is not null
+				 group by d_council_member_work_history.COMPANY_ID
+				 ) CM on #GCCMCompany.COMPANY_ID=CM.COMPANY_ID
+	   ) GCCM1 
+left join (select * 
+		   from glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC] 
+		   where ULTIMATE_PARENT_IND=1
+		   ) CSRC on GCCM1.COMPANY_ID=CSRC.MEMBER_COMPANY_ID
 left join glglive.dbo.company company on CSRC.COMPANY_ID=company.COMPANY_ID
 left join CAPIQ.dbo.ciqCompany ciq on company.CIQID=ciq.companyId
 left join CAPIQ.dbo.ciqNativeCompanyNames ciqlocal on ciqlocal.companyId=ciq.companyId
---where CSRC.MEMBER_COMPANY_ID is not null
+--where GCCM1.GLG_Company_Name like '%suning%'
 order by 1
 
 
-select * from
+select distinct GCCM1.company_id from
 #GCCMCompany GCCM1 
-left join glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC] CSRC on GCCM1.COMPANY_ID=CSRC.MEMBER_COMPANY_ID
-where CSRC.ULTIMATE_PARENT_IND=1
+left join (select * 
+		   from glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC] 
+		   where ULTIMATE_PARENT_IND=1
+		   ) CSRC on GCCM1.COMPANY_ID=CSRC.MEMBER_COMPANY_ID
 
 
 select * from glglive.[dbo].[COMPANY_SUBSIDIARY_RELATION_CALC]
